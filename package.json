@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "Quantum Download Manager - A modern, open-source download manager for Windows. Inspired by XDM and IDM.",
   "main": "dist-electron/main.js",
-  "author": "CloudflareHackers",
+  "author": {
+    "name": "CloudflareHackers",
+    "email": "cloudflare-hackers@users.noreply.github.com"
+  },
   "license": "MIT",
   "scripts": {
     "dev": "vite",
@@ -65,7 +68,6 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "build/icon.ico",
       "publisherName": "CloudflareHackers",
       "requestedExecutionLevel": "asInvoker"
     },
@@ -77,9 +79,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "QDM",
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeaderIcon": "build/icon.ico",
       "license": "LICENSE"
     },
     "portable": {
@@ -87,12 +86,11 @@
     },
     "linux": {
       "target": ["AppImage", "deb"],
-      "icon": "build/icon.png",
-      "category": "Network"
+      "category": "Network",
+      "maintainer": "cloudflare-hackers@users.noreply.github.com"
     },
     "mac": {
       "target": ["dmg"],
-      "icon": "build/icon.icns",
       "category": "public.app-category.utilities"
     }
   }

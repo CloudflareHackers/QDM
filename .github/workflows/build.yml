@@ -30,6 +30,10 @@ jobs:
       - name: Build app
         run: npm run build
 
+      - name: Generate icon
+        run: node build/create-icon.js
+        continue-on-error: true
+
       - name: Package Windows (NSIS + Portable)
         run: npx electron-builder --win --x64
         env:

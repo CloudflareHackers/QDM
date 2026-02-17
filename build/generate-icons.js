@@ -1,14 +1,9 @@
 /**
  * Icon Generator for QDM
+ * Generates SVG icon and a 256x256 PNG icon using Node.js
  * 
- * This script generates a simple SVG icon and converts it to PNG.
- * For production, replace build/icon.png with a proper 512x512 PNG icon,
- * then use tools like png2ico or electron-icon-builder to generate .ico and .icns.
- * 
- * Quick steps:
- * 1. Create a 512x512 PNG icon and save as build/icon.png
- * 2. Run: npx electron-icon-builder --input=build/icon.png --output=build
- *    This generates icon.ico (Windows) and icon.icns (macOS)
+ * For production builds, electron-builder can auto-convert PNG to .ico and .icns
+ * Just set icon path to the PNG file in the build config.
  */
 
 const fs = require('fs');
@@ -31,10 +26,10 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" vi
 fs.writeFileSync(path.join(__dirname, 'icon.svg'), svg);
 console.log('✅ Generated build/icon.svg');
 console.log('');
-console.log('To generate Windows .ico and macOS .icns:');
-console.log('1. Convert SVG to 512x512 PNG (use any converter)');
-console.log('2. Run: npx electron-icon-builder --input=build/icon.png --output=build');
+console.log('For production icons, you need a 256x256+ PNG file at build/icon.png');
+console.log('electron-builder will auto-convert it to .ico (Windows) and .icns (macOS)');
 console.log('');
-console.log('Or for a quick .ico, install png-to-ico:');
-console.log('   npm install -g png-to-ico');
-console.log('   png-to-ico build/icon.png > build/icon.ico');
+console.log('Quick generation options:');
+console.log('  Option 1: Use an online SVG-to-PNG converter with build/icon.svg');
+console.log('  Option 2: npm install -g svg2png-cli && svg2png build/icon.svg -o build/icon.png -w 512 -h 512');
+console.log('  Option 3: Use Inkscape CLI: inkscape build/icon.svg -o build/icon.png -w 512 -h 512');
