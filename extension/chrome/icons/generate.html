@@ -1,0 +1,53 @@
+<!--
+  QDM Extension Icon Generator
+  Open this file in a browser and right-click each icon to save as PNG.
+  Or use the build/icon.svg and resize it to 16x16, 48x48, 128x128.
+-->
+<style>body { background: #1a1a2e; padding: 40px; display: flex; gap: 30px; }</style>
+<canvas id="c16" width="16" height="16"></canvas>
+<canvas id="c48" width="48" height="48"></canvas>
+<canvas id="c128" width="128" height="128"></canvas>
+<script>
+function draw(id) {
+  const c = document.getElementById(id);
+  const s = c.width;
+  const ctx = c.getContext('2d');
+  const r = s * 0.15;
+  
+  // Background gradient
+  const grad = ctx.createLinearGradient(0, 0, s, s);
+  grad.addColorStop(0, '#6c5ce7');
+  grad.addColorStop(1, '#a855f7');
+  
+  ctx.beginPath();
+  ctx.roundRect(0, 0, s, s, r);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  
+  // Arrow
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = Math.max(1.5, s * 0.08);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  
+  const cx = s/2, top = s*0.25, bot = s*0.65;
+  ctx.beginPath();
+  ctx.moveTo(cx, top);
+  ctx.lineTo(cx, bot);
+  ctx.stroke();
+  
+  const aw = s * 0.15;
+  ctx.beginPath();
+  ctx.moveTo(cx - aw, bot - aw);
+  ctx.lineTo(cx, bot);
+  ctx.lineTo(cx + aw, bot - aw);
+  ctx.stroke();
+  
+  // Base line
+  ctx.beginPath();
+  ctx.moveTo(s*0.3, s*0.78);
+  ctx.lineTo(s*0.7, s*0.78);
+  ctx.stroke();
+}
+draw('c16'); draw('c48'); draw('c128');
+</script>

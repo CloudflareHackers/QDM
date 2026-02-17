@@ -1,0 +1,1 @@
+placeholder - generate with: node build/generate-icons.js then resize build/icon.svg to 16x16 PNG

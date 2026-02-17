@@ -1,0 +1,107 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    @apply h-full w-full bg-qdm-bg text-qdm-text font-sans antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Prevent text selection on UI elements */
+  button, .no-select {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+
+@layer components {
+  /* Custom titlebar drag region */
+  .titlebar-drag {
+    -webkit-app-region: drag;
+  }
+  .titlebar-no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  /* Download progress bar animation */
+  .progress-bar-animated {
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(108, 92, 231, 0.15) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  /* Segment visualization */
+  .segment-bar {
+    @apply relative h-2 rounded-full overflow-hidden;
+    background: rgba(255,255,255,0.05);
+  }
+
+  .segment-fill {
+    @apply absolute top-0 left-0 h-full rounded-full transition-all duration-300;
+  }
+
+  /* Glow effects */
+  .glow-accent {
+    box-shadow: 0 0 20px rgba(108, 92, 231, 0.3);
+  }
+
+  .glow-success {
+    box-shadow: 0 0 20px rgba(0, 184, 148, 0.3);
+  }
+
+  /* Input styles */
+  .input-qdm {
+    @apply w-full bg-qdm-bg border border-qdm-border rounded-lg px-3 py-2 text-sm text-qdm-text 
+           placeholder:text-qdm-textMuted outline-none transition-all duration-200
+           focus:border-qdm-accent focus:ring-1 focus:ring-qdm-accent/30;
+  }
+
+  /* Button styles */
+  .btn-primary {
+    @apply px-4 py-2 bg-qdm-accent hover:bg-qdm-accentHover text-white rounded-lg 
+           font-medium text-sm transition-all duration-200 active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-qdm-surface hover:bg-qdm-surfaceHover text-qdm-text 
+           border border-qdm-border rounded-lg font-medium text-sm 
+           transition-all duration-200 active:scale-95;
+  }
+
+  .btn-ghost {
+    @apply px-3 py-1.5 text-qdm-textSecondary hover:text-qdm-text hover:bg-qdm-surfaceHover 
+           rounded-lg text-sm transition-all duration-200;
+  }
+
+  .btn-danger {
+    @apply px-4 py-2 bg-qdm-danger/10 hover:bg-qdm-danger/20 text-qdm-danger 
+           border border-qdm-danger/20 rounded-lg font-medium text-sm 
+           transition-all duration-200 active:scale-95;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    @apply relative;
+  }
+  .tooltip::after {
+    content: attr(data-tooltip);
+    @apply absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 
+           bg-qdm-surface border border-qdm-border rounded text-xs text-qdm-text 
+           whitespace-nowrap opacity-0 pointer-events-none transition-opacity duration-200;
+  }
+  .tooltip:hover::after {
+    @apply opacity-100;
+  }
+}

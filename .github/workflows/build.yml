@@ -1,0 +1,168 @@
+name: Build QDM
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ==========================================
+  # Windows Build — NSIS Installer + Portable
+  # ==========================================
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Package Windows (NSIS + Portable)
+        run: npx electron-builder --win --x64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: QDM-Windows
+          path: |
+            release/*.exe
+            release/*.blockmap
+          retention-days: 30
+
+  # ==========================================
+  # macOS Build — DMG
+  # ==========================================
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Package macOS (DMG)
+        run: npx electron-builder --mac --x64 --arm64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: QDM-macOS
+          path: |
+            release/*.dmg
+            release/*.zip
+          retention-days: 30
+
+  # ==========================================
+  # Linux Build — AppImage + .deb
+  # ==========================================
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Package Linux (AppImage + deb)
+        run: npx electron-builder --linux --x64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: QDM-Linux
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.snap
+          retention-days: 30
+
+  # ==========================================
+  # Release — Create GitHub Release with all platforms
+  # ==========================================
+  release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List all artifacts
+        run: find artifacts -type f | head -50
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/QDM-Windows/*.exe
+            artifacts/QDM-macOS/*.dmg
+            artifacts/QDM-macOS/*.zip
+            artifacts/QDM-Linux/*.AppImage
+            artifacts/QDM-Linux/*.deb
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## Quantum Download Manager ${{ github.ref_name }}
+            
+            ### Downloads
+            
+            | Platform | File | Description |
+            |----------|------|-------------|
+            | 🪟 Windows | `QDM-Setup-*.exe` | Installer (NSIS) |
+            | 🪟 Windows | `QDM-Portable-*.exe` | Portable (no install) |
+            | 🍎 macOS | `*.dmg` | Disk Image |
+            | 🐧 Linux | `*.AppImage` | Universal Linux |
+            | 🐧 Linux | `*.deb` | Debian/Ubuntu |
+            
+            ---
+            *Built with ⚡ by GitHub Actions*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
