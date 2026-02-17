@@ -7,6 +7,10 @@ on:
   pull_request:
     branches: [main]
 
+# Grant write permissions to ALL jobs for creating releases
+permissions:
+  contents: write
+
 jobs:
   # ==========================================
   # Windows Build — NSIS Installer + Portable
@@ -32,7 +36,6 @@ jobs:
 
       - name: Generate icon
         run: node build/create-icon.js
-        continue-on-error: true
 
       - name: Package Windows (NSIS + Portable)
         run: npx electron-builder --win --x64
@@ -70,6 +73,9 @@ jobs:
       - name: Build app
         run: npm run build
 
+      - name: Generate icon
+        run: node build/create-icon.js
+
       - name: Package macOS (DMG)
         run: npx electron-builder --mac --x64 --arm64
         env:
@@ -106,6 +112,9 @@ jobs:
       - name: Build app
         run: npm run build
 
+      - name: Generate icon
+        run: node build/create-icon.js
+
       - name: Package Linux (AppImage + deb)
         run: npx electron-builder --linux --x64
         env:
@@ -118,7 +127,6 @@ jobs:
           path: |
             release/*.AppImage
             release/*.deb
-            release/*.snap
           retention-days: 30
 
   # ==========================================
@@ -128,9 +136,6 @@ jobs:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
-    permissions:
-      contents: write
     
     steps:
       - name: Download all artifacts
