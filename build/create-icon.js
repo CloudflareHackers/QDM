@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
-const SIZE = 256;
+const SIZE = 512;
 
 function createPNG(width, height, pixels) {
   // PNG signature
