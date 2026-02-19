@@ -417,6 +417,28 @@ app.whenReady().then(() => {
   queueManager.startScheduler()
   autoUpdater.startPeriodicCheck()
 
+  // Listen for browser:download events (from extension via browser monitor)
+  // These are emitted when extension intercepts a download or user clicks ⚡ in popup
+  const origEmit = emit
+  const downloadEmit = (event: string, data: any) => {
+    origEmit(event, data)
+    
+    // Auto-start downloads from browser extension
+    if (event === 'browser:download' && data?.url) {
+      console.log('[QDM] Auto-starting download from browser:', data.fileName || data.url.substring(0, 80))
+      downloadEngine.addDownload({
+        url: data.url,
+        fileName: data.fileName || undefined,
+        headers: data.headers || undefined,
+        autoStart: true,
+      }).catch(err => console.error('[QDM] Failed to start browser download:', err))
+    }
+  }
+  // Re-initialize services with download-aware emit
+  browserMonitor.stop()
+  browserMonitor = new BrowserMonitor(downloadEmit)
+  browserMonitor.start()
+
   createWindow()
   createAppMenu()
   // createTray()  // Enable on Windows

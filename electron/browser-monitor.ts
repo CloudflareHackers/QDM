@@ -332,7 +332,24 @@ export class BrowserMonitor {
 
       const media = this.mediaList.get(msg.vid)
       if (media) {
+        // Emit to UI AND trigger auto-download via browser:download event
         this.emit('media:download', media)
+        
+        // Build download request with cookies + headers
+        const headers: Record<string, string> = { ...(media.headers || {}) }
+        if (media.cookies) headers['Cookie'] = media.cookies
+        if (media.tabUrl) headers['Referer'] = media.tabUrl
+        headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        
+        this.emit('browser:download', {
+          url: media.url,
+          fileName: media.name,
+          headers,
+          cookies: media.cookies,
+          referer: media.tabUrl,
+          tabUrl: media.tabUrl,
+          autoStart: true,
+        })
       }
     } catch (err) {
       console.error('[QDM] Error parsing video download message:', err)
