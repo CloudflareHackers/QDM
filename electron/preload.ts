@@ -53,6 +53,13 @@ const api = {
     setSchedule: (queueId: string, schedule: any) => ipcRenderer.invoke('queue:setSchedule', queueId, schedule),
   },
 
+  // Update
+  update: {
+    check: () => ipcRenderer.invoke('update:check'),
+    getVersion: () => ipcRenderer.invoke('update:getVersion'),
+    openRelease: (version?: string) => ipcRenderer.invoke('update:openRelease', version),
+  },
+
   // Config
   config: {
     get: () => ipcRenderer.invoke('config:get'),
@@ -80,6 +87,7 @@ const api = {
       'browser-monitor:started',
       'clipboard:url',
       'queue:created', 'queue:updated', 'queue:deleted', 'queue:schedule-check',
+      'update:available', 'update:current', 'update:error',
       'show-new-download',
     ]
     if (validChannels.includes(channel)) {

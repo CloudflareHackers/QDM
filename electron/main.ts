@@ -14,6 +14,7 @@ import { DownloadEngine } from './download-engine'
 import { BrowserMonitor } from './browser-monitor'
 import { ClipboardMonitor } from './clipboard-monitor'
 import { QueueManager } from './queue-manager'
+import { AutoUpdater } from './auto-updater'
 import type { NewDownloadRequest, AppConfig } from './types'
 
 let mainWindow: BrowserWindow | null = null
@@ -22,6 +23,7 @@ let downloadEngine: DownloadEngine
 let browserMonitor: BrowserMonitor
 let clipboardMonitor: ClipboardMonitor
 let queueManager: QueueManager
+let autoUpdater: AutoUpdater
 
 const defaultConfig: AppConfig = {
   downloadDir: app.getPath('downloads'),
@@ -276,23 +278,29 @@ app.whenReady().then(() => {
   const dbPath = path.join(defaultConfig.downloadDir, '.qdm_data')
   queueManager = new QueueManager(dbPath, emit)
 
+  // Auto-updater
+  autoUpdater = new AutoUpdater(emit)
+
   // Start services
   browserMonitor.start()
   clipboardMonitor.start()
   queueManager.startScheduler()
-
-  // Handle browser download interceptions
-  browserMonitor // events are emitted via emit callback
-
-  // Handle clipboard URLs
-  // Events handled via emit -> renderer
+  autoUpdater.startPeriodicCheck()
 
   createWindow()
   // createTray()  // Enable on Windows
   setupIPC()
 
-  // Listen for download completion notifications
-  // These come through emit from the download engine
+  // ── Auto-updater IPC ──────────────────────────────────────
+  ipcMain.handle('update:check', async () => {
+    return autoUpdater.checkForUpdates()
+  })
+  ipcMain.handle('update:getVersion', async () => {
+    return autoUpdater.getCurrentVersion()
+  })
+  ipcMain.handle('update:openRelease', async (_event, version?: string) => {
+    return autoUpdater.openReleasePage(version)
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

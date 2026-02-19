@@ -63,28 +63,151 @@ function generateId(): string {
 function getFileNameFromUrl(url: string): string {
   try {
     const urlObj = new URL(url)
-    const pathname = urlObj.pathname
+    let pathname = urlObj.pathname
+    
+    // Remove trailing slash
+    if (pathname.endsWith('/')) pathname = pathname.slice(0, -1)
+    
     const name = path.basename(pathname)
-    if (name && name !== '/' && name.includes('.')) {
-      return decodeURIComponent(name)
+    if (name && name !== '/' && name.length > 0) {
+      const decoded = decodeURIComponent(name)
+      // If the name has an extension, use it
+      if (decoded.includes('.')) return sanitizeFileName(decoded)
+      // Check query params for filename hints (common in CDN URLs)
+      const fileParam = urlObj.searchParams.get('filename') || 
+                         urlObj.searchParams.get('file') ||
+                         urlObj.searchParams.get('name')
+      if (fileParam) return sanitizeFileName(decodeURIComponent(fileParam))
+      return sanitizeFileName(decoded)
     }
   } catch {}
   return 'download_' + Date.now()
 }
 
+function sanitizeFileName(name: string): string {
+  // Remove invalid characters for Windows/Linux/macOS
+  return name
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+    .replace(/_{2,}/g, '_')
+    .replace(/^\.+/, '')  // Remove leading dots
+    .trim()
+    .substring(0, 255)    // Limit filename length
+    || 'download'
+}
+
+/**
+ * Robust Content-Disposition filename parser
+ * Handles all common formats:
+ *   filename*=UTF-8''encoded%20name.zip  (RFC 5987)
+ *   filename*=utf-8''name.zip
+ *   filename="quoted name.zip"
+ *   filename=unquoted.zip
+ *   filename="name with spaces.zip"; size=1234
+ *   inline; filename="file.pdf"
+ */
 function getFileNameFromHeaders(headers: Record<string, string | string[]>, url: string): string {
-  const contentDisposition = headers['content-disposition']
-  if (contentDisposition) {
-    const cdStr = Array.isArray(contentDisposition) ? contentDisposition[0] : contentDisposition
-    // Try filename*= first (RFC 5987)
-    const match2 = cdStr.match(/filename\*=(?:UTF-8''|utf-8'')(.+)/i)
-    if (match2) return decodeURIComponent(match2[1].replace(/['"]/g, ''))
-    
-    // Try filename=
-    const match = cdStr.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
-    if (match) return match[1].replace(/['"]/g, '').trim()
+  // Try Content-Disposition header (case-insensitive search)
+  let contentDisposition: string | undefined
+  for (const [key, val] of Object.entries(headers)) {
+    if (key.toLowerCase() === 'content-disposition') {
+      contentDisposition = Array.isArray(val) ? val[0] : val
+      break
+    }
   }
-  return getFileNameFromUrl(url)
+
+  if (contentDisposition) {
+    const cdStr = contentDisposition
+
+    // 1. Try filename*= (RFC 5987 - encoded, highest priority)
+    const rfc5987 = cdStr.match(/filename\*\s*=\s*(?:UTF-8|utf-8)?'[^']*'(.+?)(?:;|$)/i)
+    if (rfc5987) {
+      try {
+        const decoded = decodeURIComponent(rfc5987[1].trim().replace(/['"]/g, ''))
+        if (decoded) return sanitizeFileName(decoded)
+      } catch {}
+    }
+
+    // 2. Try filename= with double quotes
+    const doubleQuoted = cdStr.match(/filename\s*=\s*"([^"]+)"/i)
+    if (doubleQuoted) {
+      return sanitizeFileName(doubleQuoted[1].trim())
+    }
+
+    // 3. Try filename= with single quotes
+    const singleQuoted = cdStr.match(/filename\s*=\s*'([^']+)'/i)
+    if (singleQuoted) {
+      return sanitizeFileName(singleQuoted[1].trim())
+    }
+
+    // 4. Try filename= without quotes
+    const unquoted = cdStr.match(/filename\s*=\s*([^;\s]+)/i)
+    if (unquoted) {
+      return sanitizeFileName(unquoted[1].trim().replace(/['"]/g, ''))
+    }
+  }
+
+  // Fallback: try to get extension from Content-Type
+  let contentType: string | undefined
+  for (const [key, val] of Object.entries(headers)) {
+    if (key.toLowerCase() === 'content-type') {
+      contentType = Array.isArray(val) ? val[0] : val
+      break
+    }
+  }
+
+  const urlName = getFileNameFromUrl(url)
+  
+  // If URL name has no extension, try to add one from Content-Type
+  if (contentType && !urlName.includes('.')) {
+    const ext = mimeToExtension(contentType)
+    if (ext) return sanitizeFileName(urlName + ext)
+  }
+
+  return urlName
+}
+
+/**
+ * Map common MIME types to file extensions
+ */
+function mimeToExtension(mime: string): string | null {
+  const m = mime.toLowerCase().split(';')[0].trim()
+  const map: Record<string, string> = {
+    'application/pdf': '.pdf',
+    'application/zip': '.zip',
+    'application/x-rar-compressed': '.rar',
+    'application/x-7z-compressed': '.7z',
+    'application/gzip': '.gz',
+    'application/x-tar': '.tar',
+    'application/x-msdownload': '.exe',
+    'application/x-msi': '.msi',
+    'application/x-apple-diskimage': '.dmg',
+    'application/x-debian-package': '.deb',
+    'application/vnd.android.package-archive': '.apk',
+    'application/octet-stream': '',  // generic, no extension help
+    'application/json': '.json',
+    'application/xml': '.xml',
+    'text/html': '.html',
+    'text/plain': '.txt',
+    'text/csv': '.csv',
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/gif': '.gif',
+    'image/webp': '.webp',
+    'image/svg+xml': '.svg',
+    'audio/mpeg': '.mp3',
+    'audio/ogg': '.ogg',
+    'audio/wav': '.wav',
+    'audio/flac': '.flac',
+    'audio/aac': '.aac',
+    'audio/mp4': '.m4a',
+    'video/mp4': '.mp4',
+    'video/webm': '.webm',
+    'video/x-matroska': '.mkv',
+    'video/quicktime': '.mov',
+    'video/x-msvideo': '.avi',
+    'video/x-flv': '.flv',
+  }
+  return map[m] || null
 }
 
 function formatBytes(bytes: number): string {
