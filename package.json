@@ -1,6 +1,6 @@
 {
   "name": "qdm",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Quantum Download Manager - A modern, open-source download manager for Windows. Inspired by XDM and IDM.",
   "main": "dist-electron/main.js",
   "author": {

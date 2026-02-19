@@ -4,32 +4,36 @@
   <meta charset="UTF-8">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { width: 340px; font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f13; color: #e2e2e8; }
+    body { width: 360px; font-family: 'Segoe UI', system-ui, sans-serif; background: #0f0f13; color: #e2e2e8; }
     .header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #2a2a3a; }
     .header .logo { width: 24px; height: 24px; background: linear-gradient(135deg, #6c5ce7, #a855f7); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
-    .header h1 { font-size: 13px; font-weight: 600; }
+    .header h1 { font-size: 13px; font-weight: 600; flex: 1; }
     .header .version { font-size: 10px; color: #55556a; font-family: monospace; }
     .status { display: flex; align-items: center; gap: 6px; padding: 10px 16px; font-size: 11px; border-bottom: 1px solid #2a2a3a; }
     .status .dot { width: 8px; height: 8px; border-radius: 50%; }
     .status .dot.on { background: #00b894; box-shadow: 0 0 6px #00b894; }
     .status .dot.off { background: #e17055; box-shadow: 0 0 6px #e17055; }
     .section { padding: 12px 16px; }
-    .section-title { font-size: 10px; color: #55556a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-    .video-list { max-height: 200px; overflow-y: auto; }
-    .video-item { display: flex; align-items: center; gap: 8px; padding: 8px; background: #1a1a24; border-radius: 8px; margin-bottom: 4px; cursor: pointer; transition: background 0.15s; }
-    .video-item:hover { background: #22222e; }
-    .video-item .icon { font-size: 16px; }
+    .section-title { font-size: 10px; color: #55556a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-weight: 600; }
+    .video-list { max-height: 280px; overflow-y: auto; }
+    .video-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px; background: #1a1a24; border-radius: 8px; margin-bottom: 6px; transition: background 0.15s; border: 1px solid transparent; }
+    .video-item:hover { background: #22222e; border-color: #6c5ce730; }
+    .video-item .icon { font-size: 18px; margin-top: 2px; }
     .video-item .info { flex: 1; min-width: 0; }
-    .video-item .name { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .video-item .desc { font-size: 9px; color: #8888a0; }
-    .video-item .dl-btn { padding: 4px 8px; background: #6c5ce7; color: white; border: none; border-radius: 4px; font-size: 10px; cursor: pointer; }
+    .video-item .name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; }
+    .video-item .meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .video-item .badge { font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 600; text-transform: uppercase; }
+    .video-item .badge.quality { background: #6c5ce720; color: #a78bfa; border: 1px solid #6c5ce740; }
+    .video-item .badge.size { background: #00b89420; color: #00b894; border: 1px solid #00b89440; }
+    .video-item .badge.type { background: #ff634720; color: #ff6347; border: 1px solid #ff634740; }
+    .video-item .source { font-size: 9px; color: #55556a; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .video-item .dl-btn { padding: 5px 10px; background: #6c5ce7; color: white; border: none; border-radius: 5px; font-size: 11px; cursor: pointer; font-weight: 600; white-space: nowrap; margin-top: 2px; }
     .video-item .dl-btn:hover { background: #7d6ff0; }
-    .empty { text-align: center; padding: 20px; color: #55556a; font-size: 11px; }
+    .empty { text-align: center; padding: 24px; color: #55556a; font-size: 11px; line-height: 1.5; }
     .actions { display: flex; gap: 6px; padding: 0 16px 12px; }
     .btn { flex: 1; padding: 8px; border: 1px solid #2a2a3a; background: #1a1a24; color: #e2e2e8; border-radius: 6px; font-size: 11px; cursor: pointer; text-align: center; transition: all 0.15s; }
     .btn:hover { background: #22222e; border-color: #6c5ce7; }
-    .btn.primary { background: #6c5ce7; border-color: #6c5ce7; }
-    .btn.primary:hover { background: #7d6ff0; }
+    .count { font-size: 10px; color: #8888a0; margin-left: auto; }
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 2px; }
   </style>
@@ -38,21 +42,23 @@
   <div class="header">
     <div class="logo">⚡</div>
     <h1>QDM</h1>
-    <span class="version">v1.0.0</span>
+    <span class="version">v1.0.1</span>
   </div>
   <div class="status" id="status">
     <div class="dot off" id="statusDot"></div>
     <span id="statusText">Checking QDM...</span>
   </div>
   <div class="section">
-    <div class="section-title">Detected Media</div>
+    <div style="display:flex;align-items:center;margin-bottom:8px;">
+      <span class="section-title" style="margin-bottom:0">Detected Media</span>
+      <span class="count" id="mediaCount"></span>
+    </div>
     <div class="video-list" id="videoList">
-      <div class="empty">No media detected. Browse pages with video/audio content.</div>
+      <div class="empty">No media detected yet.<br>Browse pages with video or audio content.</div>
     </div>
   </div>
   <div class="actions">
     <button class="btn" id="clearBtn">Clear All</button>
-    <button class="btn primary" id="grabLinksBtn">Grab Page Links</button>
   </div>
   <script src="popup.js"></script>
 </body>

@@ -34,6 +34,7 @@ export interface BrowserMessage {
   vid?: string
   contentType?: string
   contentLength?: number
+  quality?: string
 }
 
 export interface MediaItem {
@@ -248,6 +249,19 @@ export class BrowserMonitor {
       const contentType = msg.contentType || 
         msg.responseHeaders?.['content-type'] || 
         msg.responseHeaders?.['Content-Type'] || ''
+      const contentLength = msg.contentLength || 0
+
+      // STRICT FILTER: only accept real media, not web junk
+      const ct = contentType.toLowerCase()
+      if (ct.startsWith('text/') || ct.includes('javascript') || ct.includes('json') || 
+          ct.includes('xml') || ct.startsWith('font/') || ct.startsWith('image/svg')) {
+        return // Skip web resources
+      }
+
+      const isYouTubeStream = this.isYouTube(msg.url, msg.tabUrl)
+
+      // Skip tiny files (< 500KB) — UNLESS it's YouTube (which uses chunked ranges)
+      if (!isYouTubeStream && contentLength > 0 && contentLength < 500 * 1024) return
 
       // Detect media type
       let type: MediaItem['type'] = 'video'
@@ -257,24 +271,51 @@ export class BrowserMonitor {
         type = 'dash'
       } else if (this.isYouTube(msg.url, msg.tabUrl)) {
         type = 'youtube'
-      } else if (contentType.startsWith('audio/')) {
+      } else if (ct.startsWith('audio/')) {
         type = 'audio'
+      }
+
+      // Use tab title as name for YouTube, otherwise extract from URL
+      let name = ''
+      if (type === 'youtube' && msg.file && !msg.file.includes('/')) {
+        name = msg.file.replace(/ - YouTube$/, '') + '.mp4'
+      } else {
+        name = this.getFileNameFromUrl(msg.url)
       }
 
       const id = generateId()
       const media: MediaItem = {
         id,
-        name: msg.file || this.getFileNameFromUrl(msg.url),
+        name,
         description: this.getMediaDescription(msg, type),
         tabUrl: msg.tabUrl || '',
         tabId: msg.tabId || '',
         dateAdded: new Date().toISOString(),
         url: msg.url,
         type,
-        size: msg.contentLength || 0,
+        size: contentLength,
         contentType,
         headers: this.cleanHeaders(msg.requestHeaders),
         cookies: msg.cookie,
+      }
+
+      // For YouTube: strip range params to get base URL, deduplicate by that
+      let dedupeUrl = msg.url
+      if (isYouTubeStream) {
+        dedupeUrl = this.getYouTubeBaseUrl(msg.url)
+        // Use quality from extension (itag), or extract ourselves
+        const quality = msg.quality || this.getYouTubeQuality(msg.url)
+        if (quality) {
+          media.description += ` • ${quality}`
+        }
+        // Use the base URL (without range) for downloading
+        media.url = dedupeUrl
+      }
+
+      // Deduplicate: don't add if we already have this base URL
+      for (const [, existing] of this.mediaList) {
+        const existingBase = this.isYouTube(existing.url, '') ? this.getYouTubeBaseUrl(existing.url) : existing.url
+        if (existingBase === dedupeUrl) return
       }
 
       this.mediaList.set(id, media)
@@ -343,6 +384,8 @@ export class BrowserMonitor {
       text: m.name,
       info: m.description,
       tabId: m.tabId,
+      size: m.size,
+      type: m.type,
     }))
 
     const config = {
@@ -410,6 +453,66 @@ export class BrowserMonitor {
            (tabUrl?.includes('youtube.com/watch') ?? false)
   }
 
+  /**
+   * Strip range parameter from YouTube URL to get the full video URL
+   * YouTube uses &range=0-12345 for chunked requests
+   */
+  private getYouTubeBaseUrl(url: string): string {
+    try {
+      const urlObj = new URL(url)
+      urlObj.searchParams.delete('range')
+      urlObj.searchParams.delete('rn')    // request number
+      urlObj.searchParams.delete('rbuf')  // buffer size
+      return urlObj.toString()
+    } catch {
+      return url.replace(/&range=[^&]+/, '').replace(/&rn=[^&]+/, '')
+    }
+  }
+
+  /**
+   * Extract video quality from YouTube itag parameter
+   * Reference: https://gist.github.com/sidneys/7095afe4da4ae58694d128b1034e01e2
+   */
+  private getYouTubeQuality(url: string): string {
+    try {
+      const urlObj = new URL(url)
+      const itag = urlObj.searchParams.get('itag')
+      const mime = urlObj.searchParams.get('mime') || ''
+      
+      if (!itag) return ''
+      
+      // Common YouTube itag to quality mapping
+      const itagMap: Record<string, string> = {
+        // Video + Audio (legacy)
+        '18': '360p MP4', '22': '720p MP4',
+        // Video only (DASH)
+        '133': '240p', '134': '360p', '135': '480p',
+        '136': '720p', '137': '1080p', '138': '4K',
+        '160': '144p', '264': '1440p', '266': '2160p',
+        '298': '720p60', '299': '1080p60', '302': '720p60',
+        '303': '1080p60', '308': '1440p60', '315': '2160p60',
+        // VP9
+        '242': '240p VP9', '243': '360p VP9', '244': '480p VP9',
+        '247': '720p VP9', '248': '1080p VP9', '271': '1440p VP9',
+        '313': '2160p VP9', '302': '720p60 VP9', '303': '1080p60 VP9',
+        // Audio only
+        '139': 'Audio 48k', '140': 'Audio 128k', '141': 'Audio 256k',
+        '171': 'Audio Vorbis', '249': 'Audio Opus 50k',
+        '250': 'Audio Opus 70k', '251': 'Audio Opus 160k',
+      }
+      
+      const quality = itagMap[itag]
+      if (quality) return quality
+      
+      // Fallback: use mime type
+      if (mime.includes('video')) return `Video (itag ${itag})`
+      if (mime.includes('audio')) return `Audio (itag ${itag})`
+      return `itag ${itag}`
+    } catch {
+      return ''
+    }
+  }
+
   private getFileNameFromUrl(url: string): string {
     try {
       const urlObj = new URL(url)
@@ -430,6 +533,11 @@ export class BrowserMonitor {
     
     if (msg.contentLength && msg.contentLength > 0) {
       parts.push(this.formatSize(msg.contentLength))
+    }
+    
+    // Include quality if provided by extension
+    if (msg.quality) {
+      parts.push(msg.quality)
     }
     
     return parts.join(' • ')

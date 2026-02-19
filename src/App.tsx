@@ -19,14 +19,14 @@ const isElectron = typeof window !== 'undefined' && window.qdmAPI !== undefined
 export default function App() {
   const { 
     loadDownloads, updateProgress, addDownload, 
-    setShowNewDownload, showNewDownload, showSettings, showAbout, activeView
+    setShowNewDownload, setShowSettings, setShowAbout,
+    showNewDownload, showSettings, showAbout, activeView
   } = useDownloadStore()
 
   useEffect(() => {
     loadDownloads()
 
     if (isElectron) {
-      // Listen for download events from main process
       const unsubProgress = window.qdmAPI.on('download:progress', (data: any) => {
         updateProgress(data)
       })
@@ -36,11 +36,19 @@ export default function App() {
       const unsubNewDownload = window.qdmAPI.on('show-new-download', () => {
         setShowNewDownload(true)
       })
+      const unsubAbout = window.qdmAPI.on('show-about', () => {
+        setShowAbout(true)
+      })
+      const unsubSettings = window.qdmAPI.on('show-settings', () => {
+        setShowSettings(true)
+      })
 
       return () => {
         unsubProgress()
         unsubAdded()
         unsubNewDownload()
+        unsubAbout()
+        unsubSettings()
       }
     }
   }, [])

@@ -88,7 +88,7 @@ const api = {
       'clipboard:url',
       'queue:created', 'queue:updated', 'queue:deleted', 'queue:schedule-check',
       'update:available', 'update:current', 'update:error',
-      'show-new-download',
+      'show-new-download', 'show-about', 'show-settings',
     ]
     if (validChannels.includes(channel)) {
       const subscription = (_event: any, ...args: any[]) => callback(...args)

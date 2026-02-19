@@ -41,13 +41,16 @@ function emit(event: string, data: any) {
 }
 
 function createWindow() {
+  const isMac = process.platform === 'darwin'
+
   mainWindow = new BrowserWindow({
     width: 1100,
     height: 700,
     minWidth: 900,
     minHeight: 600,
     frame: false,
-    titleBarStyle: 'hidden',
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: isMac ? { x: 15, y: 12 } : undefined,
     backgroundColor: '#0f0f13',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -112,6 +115,121 @@ function createTray() {
   } catch (err) {
     console.warn('Failed to create tray:', err)
   }
+}
+
+function createAppMenu() {
+  const isMac = process.platform === 'darwin'
+  
+  const template: any[] = [
+    // macOS app menu
+    ...(isMac ? [{
+      label: 'QDM',
+      submenu: [
+        { label: 'About QDM', click: () => mainWindow?.webContents.send('show-about') },
+        { type: 'separator' },
+        { label: 'Settings...', accelerator: 'Cmd+,', click: () => mainWindow?.webContents.send('show-settings') },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ]
+    }] : []),
+    // File
+    {
+      label: 'File',
+      submenu: [
+        { label: 'New Download', accelerator: isMac ? 'Cmd+N' : 'Ctrl+N', click: () => {
+          mainWindow?.show()
+          mainWindow?.webContents.send('show-new-download')
+        }},
+        { type: 'separator' },
+        { label: 'Pause All Downloads', click: () => {
+          downloadEngine?.getAllDownloads().forEach(d => {
+            if (d.status === 'downloading') downloadEngine.pauseDownload(d.id)
+          })
+        }},
+        { label: 'Resume All Downloads', click: () => {
+          downloadEngine?.getAllDownloads().forEach(d => {
+            if (d.status === 'paused') downloadEngine.resumeDownload(d.id)
+          })
+        }},
+        { type: 'separator' },
+        isMac ? { role: 'close' } : { role: 'quit' },
+      ]
+    },
+    // Edit
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
+      ]
+    },
+    // View
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' },
+      ]
+    },
+    // Window
+    {
+      label: 'Window',
+      submenu: [
+        { role: 'minimize' },
+        { role: 'zoom' },
+        ...(isMac ? [
+          { type: 'separator' },
+          { role: 'front' },
+        ] : [
+          { role: 'close' },
+        ]),
+      ]
+    },
+    // Help
+    {
+      label: 'Help',
+      submenu: [
+        { label: 'Check for Updates...', click: async () => {
+          const info = await autoUpdater?.checkForUpdates()
+          if (info && !info.updateAvailable) {
+            dialog.showMessageBox(mainWindow!, {
+              type: 'info',
+              title: 'No Updates',
+              message: 'You\'re up to date!',
+              detail: `QDM ${info.currentVersion} is the latest version.`,
+            })
+          }
+        }},
+        { type: 'separator' },
+        { label: 'QDM GitHub', click: () => shell.openExternal('https://github.com/CloudflareHackers/QDM') },
+        { label: 'Report Issue', click: () => shell.openExternal('https://github.com/CloudflareHackers/QDM/issues') },
+        { label: 'Browser Extension', click: () => shell.openExternal('https://github.com/CloudflareHackers/QDM/tree/main/extension') },
+        { type: 'separator' },
+        ...(!isMac ? [
+          { label: 'About QDM', click: () => mainWindow?.webContents.send('show-about') },
+        ] : []),
+      ]
+    },
+  ]
+
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
 }
 
 function showNotification(title: string, body: string) {
@@ -288,6 +406,7 @@ app.whenReady().then(() => {
   autoUpdater.startPeriodicCheck()
 
   createWindow()
+  createAppMenu()
   // createTray()  // Enable on Windows
   setupIPC()
 

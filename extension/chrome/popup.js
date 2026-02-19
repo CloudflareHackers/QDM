@@ -2,38 +2,66 @@
 chrome.runtime.sendMessage({ action: 'get-status' }, (response) => {
   const dot = document.getElementById('statusDot');
   const text = document.getElementById('statusText');
-  
   if (response?.running) {
     dot.className = 'dot on';
-    text.textContent = 'QDM is running — downloads will be intercepted';
+    text.textContent = 'QDM is running';
     renderVideoList(response.config?.videoList || []);
   } else {
     dot.className = 'dot off';
-    text.textContent = 'QDM is not running — start QDM to enable';
+    text.textContent = 'QDM is not running — start the app';
   }
 });
 
+function fmtSize(b) {
+  if (!b || b <= 0) return '';
+  const k = 1024, s = ['B','KB','MB','GB'];
+  const i = Math.floor(Math.log(b) / Math.log(k));
+  return parseFloat((b / Math.pow(k, i)).toFixed(1)) + ' ' + s[i];
+}
+
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
 function renderVideoList(videos) {
   const container = document.getElementById('videoList');
-  if (!videos.length) return;
-  
-  container.innerHTML = videos.map(v => `
-    <div class="video-item" data-id="${v.id}">
-      <span class="icon">🎬</span>
+  const countEl = document.getElementById('mediaCount');
+  if (!videos.length) { countEl.textContent = ''; return; }
+  countEl.textContent = `${videos.length} found`;
+
+  container.innerHTML = videos.map(v => {
+    // v has: id, text (name), info (description), tabId, size, type
+    const info = v.info || '';
+    const size = v.size > 0 ? fmtSize(v.size) : '';
+    const isYT = info.toLowerCase().includes('youtube') || (v.type === 'youtube');
+    const isAudio = info.toLowerCase().includes('audio') || (v.type === 'audio');
+    const icon = isYT ? '🎬' : isAudio ? '🎵' : '🎬';
+
+    // Build badge list from info parts
+    const badges = info.split('•').map(s => s.trim()).filter(Boolean);
+    // Add size badge if not already in info
+    if (size && !badges.some(b => /^\d/.test(b) && /[BKMG]/.test(b))) {
+      badges.push(size);
+    }
+
+    return `<div class="video-item">
+      <span class="icon">${icon}</span>
       <div class="info">
-        <div class="name" title="${v.text}">${v.text}</div>
-        <div class="desc">${v.info || ''}</div>
+        <div class="name" title="${esc(v.text)}">${esc(v.text)}</div>
+        <div class="meta">
+          ${badges.map((b, i) => {
+            const cls = i === 0 ? 'type' : (/^\d/.test(b) && /[BKMG]/.test(b)) ? 'size' : 'quality';
+            return `<span class="badge ${cls}">${esc(b)}</span>`;
+          }).join('')}
+        </div>
       </div>
-      <button class="dl-btn" data-id="${v.id}">⚡ DL</button>
-    </div>
-  `).join('');
+      <button class="dl-btn" data-id="${v.id}">⚡</button>
+    </div>`;
+  }).join('');
 
   container.querySelectorAll('.dl-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', e => {
       e.stopPropagation();
       chrome.runtime.sendMessage({ action: 'download-video', id: btn.dataset.id });
-      btn.textContent = '✓';
-      btn.style.background = '#00b894';
+      btn.textContent = '✓'; btn.style.background = '#00b894';
     });
   });
 }
@@ -41,15 +69,5 @@ function renderVideoList(videos) {
 document.getElementById('clearBtn').addEventListener('click', () => {
   chrome.runtime.sendMessage({ action: 'clear-videos' });
   document.getElementById('videoList').innerHTML = '<div class="empty">Cleared.</div>';
-});
-
-document.getElementById('grabLinksBtn').addEventListener('click', async () => {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab?.id) {
-    chrome.tabs.sendMessage(tab.id, { action: 'grab-links' }, (response) => {
-      const btn = document.getElementById('grabLinksBtn');
-      btn.textContent = `✓ Sent ${response?.count || 0} links`;
-      setTimeout(() => { btn.textContent = 'Grab Page Links'; }, 2000);
-    });
-  }
+  document.getElementById('mediaCount').textContent = '';
 });
