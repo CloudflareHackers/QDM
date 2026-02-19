@@ -7,43 +7,25 @@ on:
   pull_request:
     branches: [main]
 
-# Grant write permissions to ALL jobs for creating releases
 permissions:
   contents: write
 
 jobs:
-  # ==========================================
-  # Windows Build — NSIS Installer + Portable
-  # ==========================================
   build-windows:
     runs-on: windows-latest
-    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build app
-        run: npm run build
-
-      - name: Generate icon
-        run: node build/create-icon.js
-
-      - name: Package Windows (NSIS + Portable)
-        run: npx electron-builder --win --x64
+      - run: npm ci
+      - run: npm run build
+      - run: node build/create-icon.js
+      - run: npx electron-builder --win --x64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: QDM-Windows
           path: |
@@ -51,38 +33,23 @@ jobs:
             release/*.blockmap
           retention-days: 30
 
-  # ==========================================
-  # macOS Build — DMG
-  # ==========================================
   build-macos:
     runs-on: macos-latest
-    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build app
-        run: npm run build
-
-      - name: Generate icon
-        run: node build/create-icon.js
-
-      - name: Package macOS (DMG)
-        run: npx electron-builder --mac --x64 --arm64
+      - run: npm ci
+      - run: npm run build
+      - run: node build/create-icon.js
+      # Skip code signing entirely
+      - run: npx electron-builder --mac --x64 --arm64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload macOS artifacts
-        uses: actions/upload-artifact@v4
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
         with:
           name: QDM-macOS
           path: |
@@ -90,38 +57,21 @@ jobs:
             release/*.zip
           retention-days: 30
 
-  # ==========================================
-  # Linux Build — AppImage + .deb
-  # ==========================================
   build-linux:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build app
-        run: npm run build
-
-      - name: Generate icon
-        run: node build/create-icon.js
-
-      - name: Package Linux (AppImage + deb)
-        run: npx electron-builder --linux --x64
+      - run: npm ci
+      - run: npm run build
+      - run: node build/create-icon.js
+      - run: npx electron-builder --linux --x64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
           name: QDM-Linux
           path: |
@@ -129,25 +79,16 @@ jobs:
             release/*.deb
           retention-days: 30
 
-  # ==========================================
-  # Release — Create GitHub Release with all platforms
-  # ==========================================
   release:
     needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           path: artifacts
-
-      - name: List all artifacts
-        run: find artifacts -type f | head -50
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - run: find artifacts -type f | head -50
+      - uses: softprops/action-gh-release@v1
         with:
           files: |
             artifacts/QDM-Windows/*.exe
@@ -170,6 +111,12 @@ jobs:
             | 🍎 macOS | `*.dmg` | Disk Image |
             | 🐧 Linux | `*.AppImage` | Universal Linux |
             | 🐧 Linux | `*.deb` | Debian/Ubuntu |
+            
+            ### macOS Note
+            The app is not code-signed. After installing, if macOS says it's damaged, run:
+            ```
+            xattr -cr /Applications/Quantum\ Download\ Manager.app
+            ```
             
             ---
             *Built with ⚡ by GitHub Actions*
