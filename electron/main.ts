@@ -305,10 +305,22 @@ function setupIPC() {
   ipcMain.handle('browser:downloadMedia', async (_event, mediaId: string) => {
     const media = browserMonitor.getMediaList().find(m => m.id === mediaId)
     if (media) {
+      // Build headers with cookies — critical for YouTube
+      const headers: Record<string, string> = { ...(media.headers || {}) }
+      if (media.cookies) {
+        headers['Cookie'] = media.cookies
+      }
+      // Add referer for YouTube
+      if (media.tabUrl) {
+        headers['Referer'] = media.tabUrl
+      }
+      // Use browser-like User-Agent
+      headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
       return downloadEngine.addDownload({
         url: media.url,
         fileName: media.name,
-        headers: media.headers,
+        headers,
         autoStart: true,
       })
     }

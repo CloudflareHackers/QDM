@@ -557,10 +557,11 @@ export class BrowserMonitor {
 
   private cleanHeaders(headers?: Record<string, string>): Record<string, string> {
     if (!headers) return {}
+    // Keep Cookie! YouTube needs it. Only strip internal/hop headers.
     const blocked = new Set([
-      'accept', 'if-none-match', 'if-modified-since', 'authorization', 
-      'proxy-authorization', 'connection', 'expect', 'te', 'upgrade',
-      'range', 'transfer-encoding', 'content-type', 'content-length', 'content-encoding',
+      'accept', 'if-none-match', 'if-modified-since',
+      'connection', 'expect', 'te', 'upgrade',
+      'transfer-encoding', 'content-encoding',
     ])
     const cleaned: Record<string, string> = {}
     for (const [key, value] of Object.entries(headers)) {
